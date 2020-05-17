@@ -14,7 +14,7 @@ SITE_IDENTIFIER = 'Malcolm_T3'
 SITE_NAME = 'Malcolm_T3'
 SITE_DESC = 'Malcolm in the midle, streaming, séries'
 
-URL_MAIN = 'http://malcolm-streaming.com/'
+URL_MAIN = 'http://malcolm-streaming.com'
 
 #FUNCTION_SEARCH = 'showMovies'
 
@@ -183,43 +183,7 @@ def __checkForNextPage(sHtmlContent):
     return False
 
 #search hosts
-def showHosters(): #recherche et affiche les hotes
 
-    UrlEpisode = URL_MAIN + sUrl  + 'mystream'
-    referer= UrlEpisode
-    
-    
-    oGui = cGui() #ouvre l'affichage
-    oInputParameterHandler = cInputParameterHandler() #apelle l'entree de parametre
-    sUrl = oInputParameterHandler.getValue('siteUrl') #apelle siteUrl
-    sMovieTitle = oInputParameterHandler.getValue('sMovieTitle') #appelle le titre
-    sThumb = oInputParameterHandler.getValue('sThumb') #appelle le poster
-    referer = oInputParameterHandler.getValue('referer') # récupere l'URL appelante
-    
-    oRequestHandler = cRequestHandler(sUrl) # requete sur l'url
-    oRequestHandler.addHeaderEntry('Referer', referer) # parametre pour passer l'URL appelante (n'est pas forcement necessaire)
-    sHtmlContent = oRequestHandler.request() # requete sur l'url
-
-    oParser = cParser()
-    sPattern = '<iframe.+?src="([^"]+)"'
-    #ici nous cherchons toute les sources iframe
-
-    aResult = oParser.parse(sHtmlContent, sPattern)
-    #pensez a faire un VSlog(str(aResult)) pour verifier
-
-    # si un lien ne s'affiche pas, peut etre que l'hote n'est pas supporte par l'addon
-    if (aResult[0] == True):
-        for aEntry in aResult[1]:
-
-            sHosterUrl = aEntry
-            oHoster = cHosterGui().checkHoster(sHosterUrl) #recherche l'hote dans l'addon
-            if (oHoster != False):
-                oHoster.setDisplayName(sMovieTitle) #nom affiche
-                oHoster.setFileName(sMovieTitle) #idem
-                cHosterGui().showHoster(oGui, oHoster, sHosterUrl, sThumb)
-                #affiche le lien (oGui, oHoster, url du lien, poster)
-
-    oGui.setEndOfDirectory() #fin
 
 # Pour les series, il y a generalement une etape en plus pour la selection des episodes ou saisons.
 def ShowSerieSaisonEpisodes():
@@ -260,8 +224,88 @@ def ShowSerieSaisonEpisodes():
             oOutputParameterHandler.addParameter('sMovieTitle', sTitle)
             oOutputParameterHandler.addParameter('sThumb', sThumb)
 
-            oGui.addTV(SITE_IDENTIFIER, 'seriesHosters', sTitle, '', sThumb, '', oOutputParameterHandler)
+            oGui.addTV(SITE_IDENTIFIER, 'showLinks', sTitle, '', sThumb, '', oOutputParameterHandler)
 
         progress_.VSclose(progress_)
 
     oGui.setEndOfDirectory()
+    
+def showLinks():
+    oGui = cGui()
+    
+
+    oInputParameterHandler = cInputParameterHandler()
+    sUrl = oInputParameterHandler.getValue('siteUrl')
+    sThumb = oInputParameterHandler.getValue('sThumb')
+    sMovieTitle = oInputParameterHandler.getValue('sMovieTitle')
+
+    oParser = cParser()
+    oRequestHandler = cRequestHandler(sUrl)
+    sHtmlContent = oRequestHandler.request()
+    sPattern = 'ajaxTab\("([^"]+)","#([^"]+)'
+    aResult = oParser.parse(sHtmlContent, sPattern)
+
+    if (aResult[0] == False):
+        oGui.addText(SITE_IDENTIFIER)
+
+    if (aResult[0] == True):
+        for aEntry in aResult[1]:
+
+            sDataUrl = aEntry[0]
+            #sDataCode = aEntry[1]
+            sHost = aEntry[1].capitalize()
+            sDesc = ''
+
+            # filtrage des hosters
+            oHoster = cHosterGui().checkHoster(sHost)
+            if not oHoster:
+                continue
+
+            sTitle = ('%s  [COLOR coral]%s[/COLOR]') % (sMovieTitle, sHost)
+            lien = URL_MAIN +  sDataUrl + sHost
+
+            oOutputParameterHandler = cOutputParameterHandler()
+            oOutputParameterHandler.addParameter('sMovieTitle', sMovieTitle)
+            oOutputParameterHandler.addParameter('sThumb', sThumb)
+            oOutputParameterHandler.addParameter('siteUrl', lien)
+            oOutputParameterHandler.addParameter('referer', sUrl)
+
+            oGui.addLink(SITE_IDENTIFIER, 'showHosters', sTitle, sThumb, sDesc, oOutputParameterHandler)
+
+    oGui.setEndOfDirectory()
+    
+def showHosters(): #recherche et affiche les hotes
+
+       
+    
+    oGui = cGui() #ouvre l'affichage
+    oInputParameterHandler = cInputParameterHandler() #apelle l'entree de parametre
+    sUrl = oInputParameterHandler.getValue('siteUrl') #apelle siteUrl
+    sMovieTitle = oInputParameterHandler.getValue('sMovieTitle') #appelle le titre
+    sThumb = oInputParameterHandler.getValue('sThumb') #appelle le poster
+    
+    
+    oRequestHandler = cRequestHandler(sUrl) # requete sur l'url
+    
+    sHtmlContent = oRequestHandler.request() # requete sur l'url
+
+    oParser = cParser()
+    sPattern = 'href="([^"]+)"'
+    #ici nous cherchons toute les sources iframe
+
+    aResult = oParser.parse(sHtmlContent, sPattern)
+    #pensez a faire un VSlog(str(aResult)) pour verifier
+
+    # si un lien ne s'affiche pas, peut etre que l'hote n'est pas supporte par l'addon
+    if (aResult[0] == True):
+        for aEntry in aResult[1]:
+
+            sHosterUrl = aEntry
+            oHoster = cHosterGui().checkHoster(sHosterUrl) #recherche l'hote dans l'addon
+            if (oHoster != False):
+                oHoster.setDisplayName(sMovieTitle) #nom affiche
+                oHoster.setFileName(sMovieTitle) #idem
+                cHosterGui().showHoster(oGui, oHoster, sHosterUrl, sThumb)
+                #affiche le lien (oGui, oHoster, url du lien, poster)
+
+    oGui.setEndOfDirectory() #fin
