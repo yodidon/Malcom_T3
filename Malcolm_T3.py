@@ -146,7 +146,7 @@ def showMovies(sSearch = ''):
             if progress_.iscanceled():
                 break
 
-            sUrl    = URL_MAIN + 'saison'+'-' + aEntry[1]
+            sUrl    = URL_MAIN + '/saison'+'-' + aEntry[1]
             sTitle  = 'Saison' + aEntry[1]
             sThumb =''
             #sThumb = aEntry[2]
@@ -157,7 +157,7 @@ def showMovies(sSearch = ''):
             oOutputParameterHandler.addParameter('siteUrl', sUrl)
             oOutputParameterHandler.addParameter('sMovieTitle', sTitle)
             oOutputParameterHandler.addParameter('sThumb', sThumb)
-            #oOutputParameterHandler.addParameter('referer', sUrl) # URL d'origine, parfois utile comme référence
+            #oOutputParameterHandler.addParameter('referer', sUrl2) # URL d'origine, parfois utile comme référence
             oGui.addMovie(SITE_IDENTIFIER, 'ShowSerieSaisonEpisodes', sTitle, '', sThumb, '', oOutputParameterHandler)
 
         progress_.VSclose(progress_)
@@ -218,11 +218,13 @@ def ShowSerieSaisonEpisodes():
             sTitle  = aEntry[1]
             sThumb = aEntry[2]
             sThumb = URL_MAIN + sThumb
+            
 
             oOutputParameterHandler = cOutputParameterHandler()
             oOutputParameterHandler.addParameter('siteUrl', sUrl)
             oOutputParameterHandler.addParameter('sMovieTitle', sTitle)
             oOutputParameterHandler.addParameter('sThumb', sThumb)
+            
 
             oGui.addTV(SITE_IDENTIFIER, 'showLinks', sTitle, '', sThumb, '', oOutputParameterHandler)
 
@@ -238,6 +240,7 @@ def showLinks():
     sUrl = oInputParameterHandler.getValue('siteUrl')
     sThumb = oInputParameterHandler.getValue('sThumb')
     sMovieTitle = oInputParameterHandler.getValue('sMovieTitle')
+    
 
     oParser = cParser()
     oRequestHandler = cRequestHandler(sUrl)
@@ -253,8 +256,9 @@ def showLinks():
 
             sDataUrl = aEntry[0]
             #sDataCode = aEntry[1]
-            sHost = aEntry[1].capitalize()
+            sHost = aEntry[1]
             sDesc = ''
+            
 
             # filtrage des hosters
             oHoster = cHosterGui().checkHoster(sHost)
@@ -275,37 +279,42 @@ def showLinks():
     oGui.setEndOfDirectory()
     
 def showHosters(): #recherche et affiche les hotes
-
-       
-    
-    oGui = cGui() #ouvre l'affichage
-    oInputParameterHandler = cInputParameterHandler() #apelle l'entree de parametre
-    sUrl = oInputParameterHandler.getValue('siteUrl') #apelle siteUrl
-    sMovieTitle = oInputParameterHandler.getValue('sMovieTitle') #appelle le titre
-    sThumb = oInputParameterHandler.getValue('sThumb') #appelle le poster
-    
-    
-    oRequestHandler = cRequestHandler(sUrl) # requete sur l'url
-    
-    sHtmlContent = oRequestHandler.request() # requete sur l'url
-
+    oGui = cGui()
     oParser = cParser()
-    sPattern = 'href="([^"]+)"'
-    #ici nous cherchons toute les sources iframe
-
+    oInputParameterHandler = cInputParameterHandler()
+    sUrl = oInputParameterHandler.getValue('siteUrl')
+    sMovieTitle = oInputParameterHandler.getValue('sMovieTitle')
+    sThumb = oInputParameterHandler.getValue('sThumb')
+    referer = oInputParameterHandler.getValue('referer')
+    
+    oRequest = cRequestHandler(sUrl)
+    oRequest.addHeaderEntry('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; ) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36')
+    oRequest.addHeaderEntry('Referer',referer)
+    oRequest.addHeaderEntry('Accept', '*/*')
+    oRequest.addHeaderEntry('Accept-Language', 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7')
+    oRequest.addHeaderEntry('X-Requested-With', 'XMLHttpRequest')
+    
+    sHtmlContent = oRequest.request()
+    
+    
+    
+    
+    sPattern = 'SRC="(.+?)"'
+    
+    
     aResult = oParser.parse(sHtmlContent, sPattern)
-    #pensez a faire un VSlog(str(aResult)) pour verifier
 
-    # si un lien ne s'affiche pas, peut etre que l'hote n'est pas supporte par l'addon
     if (aResult[0] == True):
         for aEntry in aResult[1]:
-
             sHosterUrl = aEntry
-            oHoster = cHosterGui().checkHoster(sHosterUrl) #recherche l'hote dans l'addon
-            if (oHoster != False):
-                oHoster.setDisplayName(sMovieTitle) #nom affiche
-                oHoster.setFileName(sMovieTitle) #idem
-                cHosterGui().showHoster(oGui, oHoster, sHosterUrl, sThumb)
-                #affiche le lien (oGui, oHoster, url du lien, poster)
+            if 'facebook' in sHosterUrl:
+                continue
+            oHoster = cHosterGui().checkHoster(sHosterUrl)
 
-    oGui.setEndOfDirectory() #fin
+    
+        if (oHoster != False):
+            oHoster.setDisplayName(sMovieTitle)
+            oHoster.setFileName(sMovieTitle)
+            cHosterGui().showHoster(oGui, oHoster, sHosterUrl, sThumb)
+
+    oGui.setEndOfDirectory()
